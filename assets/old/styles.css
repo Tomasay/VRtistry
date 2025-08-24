@@ -1,0 +1,198 @@
+@font-face {
+    font-family: 'Becca';
+    src: url("Becca.ttf") format("truetype");
+    font-weight: normal;
+    font-style: normal; }
+
+@font-face {
+    font-family: 'NoVirus';
+    src: url("NoVirus.ttf") format("truetype");
+    font-weight: normal;
+    font-style: normal;
+}
+
+* {
+    touch-action:none;
+}
+
+button {
+    border: none;
+    color: white;
+    padding: 30px 64px;
+    display: inline-block;
+    font-size: 48px;
+    margin: 8px 4px;
+    cursor: pointer;
+    background-color: #008CBA;
+  }
+  #head {
+      position: absolute;
+    top: 0;
+    left: 0;
+    height: 100px;
+    width: 100%;
+    padding: 24px 30px;
+    background: #008CBA;
+    user-select: none;
+    color: #fff;
+    z-index: 100;
+}
+
+#title {
+font-family: "NoVirus";
+text-align: center;
+position: center;
+width: 100%;
+}
+
+#join{margin: 0 auto;max-width: 280px;padding: 4%;}
+#submit{
+    /* margin: 0; */
+    /* position: relative; */
+    /* left: 20%; */
+    font-family: 'NoVirus';
+    border-radius: 6px;
+    transform: translateY(50%) translateX(25%);
+}
+body {
+    overflow: hidden;
+    padding-top: 100px;
+    font-family: "Becca";
+    font-size: 24px;
+    
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+}
+label {
+    font-size: 48px;
+    padding-bottom: 20px;
+    padding-right: 20px;
+}
+
+input{
+    font-family: "Becca";
+    font-size: 48px;
+}
+
+#controller{
+    margin: auto;
+    max-width: 800px;
+}
+
+.Action{
+    margin-left: 15%;
+    margin-top: 0.5em;
+    border-radius: 50%;
+    background-color: #505050;
+    padding: 100px 110px;
+}
+
+.ReadyUp{
+    width: 100%;
+    padding: 50px 0px;
+    margin-top: 0.5em;
+    margin-left: 0%;
+    border-radius: 10px;
+    background-color: #505050;
+}
+
+#joy1Div{
+    width:800px; 
+    height: 800px;
+    margin-left:5%;
+    margin-bottom: -5%;
+}
+
+#orient{
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    border-radius: 50%;
+    width: 18px;
+    padding: 57px;
+    background-repeat: no-repeat;
+    background-size: 90px;
+    background-position-x: 12px;
+    background-position-y: 8px;
+}
+
+.LeftIcon{
+    background-image: url(./SwitchHandsIconLeft.png);
+}
+
+.RightIcon{
+    background-image: url(./SwitchHandsIconRight.png);
+}
+
+button:disabled{
+    pointer-events: none;
+}
+
+
+@media screen and (hover: none) and (pointer: coarse) {
+    button {
+        border: none;
+        color: white;
+        padding: 30px 64px;
+        display: inline-block;
+        font-size: 3em;
+        margin: 8px 4px;
+        cursor: pointer;
+        background-color: #008CBA;
+      }
+      #head {
+          position: absolute;
+          top: 0;
+          left: 0;
+          height: 150px;
+          width: 100%;
+          padding: 24px 30px;
+          background: #008CBA;
+          user-select: none;
+          color: #fff;
+          z-index: 100;
+    }
+    
+    #title {
+        font-family: "NoVirus";
+        text-align: center;
+        font-size: 3em;
+        position: center;
+        width: 100%;
+    }
+    
+    #join{margin: 0 auto;max-width: 480px;padding: 4%;}
+    #submit{
+        /* margin: 0; */
+        /* position: relative; */
+        /* left: 20%; */
+        font-family: 'NoVirus';
+        border-radius: 6px;
+        transform: translateY(50%) translateX(50%);
+    }
+    body {
+        padding-top: 220px;
+        font-family: "Becca";
+        font-size: 24px;
+    }
+    label {
+        font-size: 3em;
+        padding-bottom: 20px;
+        padding-right: 20px;
+        /* margin-top: 10px; */
+    }
+    
+    input{
+        font-family: "Becca";
+        font-size: 3em;
+        margin-left: 4px;
+        /* margin-bottom: 4px; */
+    }
+    
+    #controller{
+        margin: auto;
+        /*max-width: 800px;*/
+    }
+    
+}

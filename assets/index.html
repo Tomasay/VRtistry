@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en-us">
+   <head>
+      <meta charset="utf-8" />
+      <meta http-equiv="Content-Type" name="viewport" content="charset=utf-8, width=device-width, height=device-height, initial-scale=1, user-scalable=0, maximum-scale=1, target-densitydpi=device-dpi, interactive-widget=resizes-content"/>
+      <title>Party Crashers</title>
+       
+       <link rel="apple-touch-icon" sizes="180x180" href="favicon/apple-touch-icon.png">
+       <link rel="icon" type="image/png" sizes="32x32" href="favicon/favicon-32x32.png">
+       <link rel="icon" type="image/png" sizes="16x16" href="favicon/favicon-16x16.png">
+       <link rel="manifest" href="favicon/site.webmanifest">
+
+      <link rel="stylesheet" href="Template/style.css" />
+       
+       <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+      
+   </head>
+   <body class="Dark">
+      <!-- Unity Container -->
+      <div id="main-container" class="fill-window">
+
+         <div id="unity-container">
+            <canvas id="unity-canvas"></canvas>
+         </div>
+
+         <!-- This is a simple progress bar -->
+         <div id="loader" class="loader">
+             
+             <div class="logo-cont">
+                  <img class="logo" src="Template/logo.gif"/>
+               </div>
+             
+             <div class="progressbar">
+                  <div id="fill" class="fill" style="width: 0%;"></div>
+               </div>
+            
+         </div>
+         
+      </div>
+       
+       <input type="text" id="dummyInput" style="font-size: 16px; position:absolute; bottom:25%;" oninput="fakeInputOnClick()" onfocus="setScreenHeightIOSKeyboardOpen()" onblur="setScreenHeightIOSKeyboardClosed()">
+       
+       <!-- KEEP PAGE FOCUS -->
+       <script type="module" src="NoSleep/initNoSleep.js"> </script>
+
+       <!--
+       <button onclick="fakeInputFocus()" id="fakeInputButton" style="position:absolute; top:100px; left:50%; transform: translate(-50%);" >TEST BUTTON</button>
+       
+       
+       <input type="hidden" id="nameInput" placeholder="Enter Name" style="position: absolute; left: 50%; transform: translate(-50%, 0);">
+       <input type="hidden" id="codeInput" placeholder="Enter Party Code" style="position: absolute; left: 50%; transform: translate(-50%, 0);">
+       -->
+
+      <script src="Template/app.js"> </script>
+       
+       <script>
+           
+           window.onload = setup;
+           let canvasInitialHeight, initialInnerHeight;
+        
+            function setup(){
+                $('#unity-canvas').on('touchend', function(e){
+                    e.stopPropagation();
+                    e.preventDefault();
+
+                    if(window.isPointerDownOnButton){
+                        document.getElementById("dummyInput").focus();
+                    }
+                });
+                
+                if ("virtualKeyboard" in navigator){
+                    navigator.virtualKeyboard.overlaysContent = true;
+                    
+                    navigator.virtualKeyboard.addEventListener("geometrychange", (event) => {
+                        const { x, y, width, height } = event.target.boundingRect;
+                        //console.log("Changing height: " + event.target.boundingRect.height);
+                        if(event.target.boundingRect.height > 50){
+                            document.getElementById("unity-container").style.top = ('-' + event.target.boundingRect.height + 'px');
+                        }
+                        else{
+                            document.getElementById("unity-container").style.top = '0px';
+                        }
+                        
+                      });
+                }
+
+                canvasInitialHeight = document.getElementById("unity-canvas").height;
+                initialInnerHeight = window.innerHeight;
+            }
+           
+           function fakeInputOnClick(){
+               window.unityInstance.SendMessage('KeyboardController', 'UpdateText', document.getElementById("dummyInput").value.toString());
+           }
+           
+           function setScreenHeightIOSKeyboardOpen(){
+               if(iOS()){
+                    //Update canvas height when keyboard opens
+                    //document.getElementById("unity-canvas").height = screen.height;
+                    document.getElementById("unity-container").style.top = '-216pt';
+                }
+           }
+           
+           function setScreenHeightIOSKeyboardClosed(){
+               if(iOS()){
+                    //Revert to original canvas height, god only knows why this number needs to be doubled, but it works
+                    //document.getElementById("unity-canvas").height = canvasInitialHeight * 2;
+                    document.getElementById("unity-container").style.top = '0pt';
+               }
+           }
+           
+          function iOS() {
+              return [
+                'iPad Simulator',
+                'iPhone Simulator',
+                'iPod Simulator',
+                'iPad',
+                'iPhone',
+                'iPod'
+              ].includes(navigator.platform)
+              // iPad on iOS 13 detection
+              || (navigator.userAgent.includes("Mac") && "ontouchend" in document)
+        }
+        
+           
+       </script>
+
+   </body>
+</html>

@@ -1,0 +1,138 @@
+@import url('https://fonts.googleapis.com/css2?family=Patua+One&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Libre+Franklin&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;800&display=swap');
+
+#canvas{
+    position: fixed;
+    width: 100vw;
+    height: 100vh;
+    top: 0;
+    left: 0;
+}
+
+body { 
+    font-family: 'Libre-Franklin', sans-serif;
+    font-weight: 800;
+    max-width: 55em;
+    margin: 1em auto;
+    padding: 0 .6em;
+    background-color: #842F72;
+    color: white;
+}
+
+a {
+    color: white;
+}
+
+article {
+    background-color: rgba(0,0,0,0.8);
+    position: relative;
+    padding: 2%;
+    border-radius: 1%;
+}
+
+main {
+    /*font-family: Georgia, serif;*/
+    font-weight: 400;
+}
+
+code {
+    font: 1.1em/1.5em monospace;
+}
+
+h1, h2, h3 {
+    line-height: 1.2em;
+    text-align: center;
+    color: yellow;
+}
+
+h4 {
+    line-height: 1.2em;
+} 
+
+.header {
+    line-height: 2.4em;
+    font-size: xx-large;
+    text-align: right;
+}
+
+img {
+    max-width: 80%;
+    display: block;
+    margin: .75em auto;
+    border: 1px solid black;
+}
+
+nav {
+    text-align: center;
+}
+
+footer {
+    text-align: center;
+    font: 0.7em/1.2em;
+}
+
+table {
+    width: 100%;
+}
+
+table, td {
+    border-spacing: 1px;
+}
+
+td {
+    padding: 0.5em;
+}
+
+dt {
+    font-weight: bold;
+}
+
+ul, ol {
+    text-align: left;
+}
+
+figure {
+    margin: 0;
+}
+
+figcaption {
+    text-align: center;
+    font: 0.7em/1.2em;
+    font-style: italic;
+    padding-left: 0.75em;
+    padding-right: 0.75em;
+}
+
+blockquote {
+    border-left: 1px solid black;
+    padding-left: 1em;
+    color: #777;
+}
+
+.fleuron {
+    text-align: center;
+    font: 2.5em/1em;
+}
+
+.footnotes {
+    font: 0.7em/1.2em ;
+}
+
+.blognav {
+    display: flex;
+    justify-content: space-between;
+    font: 2em/1em ;
+}
+
+.blogtoc {
+    text-align: center;
+}
+
+.horbar {
+    max-width: 25%;
+}
+
+.codebox {
+    padding-left: 4em;
+}
