@@ -59,6 +59,8 @@
            let canvasInitialHeight, initialInnerHeight;
         
             function setup(){
+                window.overlayKeyboard = false;
+                
                 $('#unity-canvas').on('touchend', function(e){
                     e.stopPropagation();
                     e.preventDefault();
@@ -66,8 +68,6 @@
                     if(window.isPointerDownOnButton){
                         document.getElementById("dummyInput").focus();
                     }
-                    
-                    window.overlayKeyboard = false;
                 });
                 
                 if ("virtualKeyboard" in navigator){
@@ -76,7 +76,7 @@
                     navigator.virtualKeyboard.addEventListener("geometrychange", (event) => {
                         const { x, y, width, height } = event.target.boundingRect;
                         //console.log("Changing height: " + event.target.boundingRect.height);
-                        if(event.target.boundingRect.height > 50 && window.overlayKeyboard){
+                        if(event.target.boundingRect.height > 50 && !window.overlayKeyboard){
                             document.getElementById("unity-container").style.top = ('-' + event.target.boundingRect.height + 'px');
                         }
                         else{
@@ -95,7 +95,7 @@
            }
            
            function setScreenHeightIOSKeyboardOpen(){
-               if(iOS() && window.overlayKeyboard){
+               if(iOS() && !window.overlayKeyboard){
                     //Update canvas height when keyboard opens
                     //document.getElementById("unity-canvas").height = screen.height;
                     document.getElementById("unity-container").style.top = '-216pt';
