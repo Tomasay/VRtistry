@@ -83,7 +83,9 @@
                             document.getElementById("unity-container").style.top = '0px';
                         }
                         
-                        window.lastKeyboardHeight = navigator.virtualKeyboard.boundingRect.height;
+                        if(navigator.virtualKeyboard.boundingRect.height != 0){ //Only store the last max keyboard height
+                            window.lastKeyboardHeight = navigator.virtualKeyboard.boundingRect.height;
+                        }
                         
                       });
                 }
