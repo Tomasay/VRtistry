@@ -2,10 +2,12 @@ let wakeLock = null;
 
 async function requestWakeLock() {
     if (document.visibilityState !== 'visible') return;
+    if (wakeLock !== null) return; // already held
     try {
         wakeLock = await navigator.wakeLock.request('screen');
         console.log('Wake Lock acquired.');
         wakeLock.addEventListener('release', () => {
+            wakeLock = null;
             console.log('Wake Lock released.');
             // Re-acquire immediately if the page is still visible.
             // iOS can release the lock for reasons other than tab switching.
@@ -14,16 +16,19 @@ async function requestWakeLock() {
             }
         });
     } catch (err) {
-        console.warn('Wake Lock request failed:', err);
+        console.warn('Wake Lock request failed:', err.name, err.message);
     }
 }
 
-// Re-acquire whenever the tab becomes visible (browser releases it automatically on hide)
+// Re-acquire when returning to the tab
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
         requestWakeLock();
     }
 });
 
-// Initial acquisition — no user gesture required for the Wake Lock API
+// iOS Safari may reject the lock without prior user interaction — retry on first touch
+document.addEventListener('touchstart', requestWakeLock, { once: true });
+
+// Initial attempt (works on most browsers without a gesture)
 requestWakeLock();
