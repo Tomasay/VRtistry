@@ -21,14 +21,16 @@ async function requestWakeLock() {
 }
 
 // Re-acquire when returning to the tab
+/*
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
         requestWakeLock();
     }
 });
+*/
 
 // iOS Safari may reject the lock without prior user interaction — retry on first touch
 document.addEventListener('touchstart', requestWakeLock, { once: true });
 
 // Initial attempt (works on most browsers without a gesture)
-requestWakeLock();
+//requestWakeLock();
