@@ -65,6 +65,10 @@
                     e.stopPropagation();
                     e.preventDefault();
 
+                    // Re-request wake lock on every canvas tap — guarantees it is called
+                    // from a genuine user gesture, which iOS Safari requires in practice.
+                    window.requestWakeLock();
+
                     if(window.isPointerDownOnButton){
                         document.getElementById("dummyInput").focus();
                     }
