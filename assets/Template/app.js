@@ -32,8 +32,8 @@
         frameworkUrl: buildUrl + "/WebGL.framework.js.gz",
         codeUrl: buildUrl + "/WebGL.wasm.gz",
         streamingAssetsUrl: "StreamingAssets",
-        companyName: "",
-        productName: "Funky Virtual Party",
+        companyName: "SynthLabs",
+        productName: "VRtistry",
         productVersion: "0.1",
     };
 
@@ -41,13 +41,10 @@
     script.src = loaderUrl;
     script.onload = () => {
         createUnityInstance(canvas, config, onProgress)
-            .then((unityInstance) => {
-            console.log("Creating Unity Instance");
-            window.unityInstance = unityInstance;
-        }).then(onComplete).catch((message) => {
+            .then(onComplete)
+            .catch((message) => {
                 alert(message);
         });
-                  
     };
     document.body.appendChild(script);
 
