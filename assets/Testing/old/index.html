@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="user-scalable=0">
+    <script src="joy.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="gunzip.min.js"></script>
+    <script>
+        let socket = io();
+        let el, latencyText;
+        let nameInput, partyCodeInput, submitButton;
+        let joinDiv, controllerDiv, readyUpButton, buttonLeft, buttonRight, buttonOrient;
+        
+        var label_img = 1001;
+        var dataID_img = 0;
+        var dataLength_img = 0;
+        var receivedLength_img = 0;
+        var dataByte_img = new Uint8Array(0);
+        var ReadyToGetFrame_img = true;
+
+        var label_aud = 2001;
+        var dataID_aud = 0;
+        var dataLength_aud = 0;
+        var receivedLength_aud = 0;
+        var dataByte_aud = new Uint8Array(100);
+        var ReadyToGetFrame_aud = true;
+        var SourceSampleRate = 44100;
+        var SourceChannels = 1;
+        var ABuffer = new Float32Array(0);
+
+        window.onload = setup;
+        
+        function setup(){
+            el = document.getElementById('server-time');
+            latencyText = document.getElementById('latency');
+            
+            nameInput = document.getElementById('name');
+            partyCodeInput = document.getElementById('partyCode');
+            submitButton = document.getElementById('submit');
+            
+            joinDiv = document.getElementById('join');
+            controllerDiv = document.getElementById('controller');
+            readyUpButton = document.getElementById('ReadyUpDiv');
+            buttonLeft = document.getElementById('actionButtonLeft');
+            buttonRight = document.getElementById('actionButtonRight');
+            buttonOrient = document.getElementById('orient');
+
+            partyCodeInput.addEventListener("keyup", function(event) {
+                if (event.keyCode === 13) { //Enter key
+                    submitButton.click();
+                }
+            });
+            initJoystick();
+            
+            controllerDiv.style.display = "none";
+            buttonOrient.style.display = "none";
+            readyUpButton.style.display = "none";
+            socket.on("fromServer", fromServer);
+            
+            socket.on("joinedRoom", joinRoom);
+            socket.on("roomClosed", roomClosed);
+            socket.on("minigameStart", joinGame);
+            setInterval(() => {
+              const start = Date.now();
+
+              // volatile, so the packet will be discarded if the socket is not connected
+              socket.volatile.emit("ping", () => {
+                const latency = Date.now() - start;
+                latencyText.innerHTML = "Ping: " + latency + "ms";
+              });
+            }, 5000);
+            
+            //VIDEO
+            socket.on('ReceivedData', GetVideoData);
+            
+            //Query strings
+            let params = (new URL(document.location)).searchParams;
+            let queriedCode = params.get('partyCode');
+            
+            if(queriedCode != null){
+                partyCodeInput.value = queriedCode;
+            }
+        }
+        
+        function fromServer(message){
+            console.log("From server: " + message);
+        }
+        
+        function onClick(e){
+            let coords = 'X: ' + e.pageX + '  Y: ' + e.pageY;
+            el.innerHTML = coords + "   clicked at: " + new Date().toTimeString();
+            
+            socket.emit('input', coords);
+        }
+        
+        function getTime(){
+            let date = new Date();
+            return date.getHours() + ":" + date.getMinutes() + ":" + date.getSeconds() + "." + date.getMilliseconds();
+        }
+        
+        function initJoystick(){
+            // Create JoyStick object into the DIV 'joy1Div'
+            var Joy1 = new JoyStick('joy1Div');
+
+            setInterval(function(){ socket.emit('input', Joy1.GetX(), Joy1.GetY()); }, 50);
+        }
+        
+        function submitPartyCode(){
+            //debugJoinRoom();
+            //console.log("Party code: " + partyCodeInput.value.toUpperCase());
+            socket.emit("joinRoom", partyCodeInput.value.toUpperCase(), nameInput.value);
+        }
+        
+        function joinRoom(validRoom){
+            if(validRoom){
+                console.log("player joined room!");
+
+                joinDiv.style.display = "none";
+                controllerDiv.style.display = "block";
+                buttonOrient.style.display = "block";
+                //readyUpButton.style.display = "block";
+                
+            }
+            
+            else{
+                
+                console.log("invalid room code!")
+                
+            }
+            
+        }
+        
+        function joinGame(gameName){
+            
+            readyUpButton.style.display = "block";
+            
+        }
+        
+        function roomClosed(){
+            console.log("Unity room was closed");
+            window.location.reload();
+        }
+
+        function debugJoinRoom()
+        {
+            joinDiv.style.display = "none";
+            controllerDiv.style.display = "block";
+            buttonOrient.style.display = "block";
+        }
+
+        function actionButton(){
+            socket.emit('Action');
+        }
+
+        function submitReadyUp()
+        {
+            socket.emit('ReadyUp');
+            readyUpButton.style.display = "none";
+        }
+
+        function changeOrientation(){
+            buttonRight.disabled = !buttonRight.disabled;
+            buttonLeft.disabled = !buttonLeft.disabled;
+            
+            buttonRight.style.opacity = buttonRight.disabled ? "0" : "1";
+            buttonLeft.style.opacity = buttonLeft.disabled ? "0" : "1";
+
+            buttonOrient.className = buttonRight.disabled ? "ReadyUp RightIcon" : "ReadyUp LeftIcon";
+        }
+        
+        function GetVideoData(data){
+
+                label_img = 1001;
+                label_aud = 2001;
+            
+                var _byteData = new Uint8Array(data);
+                
+                var _label = ByteToInt32(_byteData, 0);
+
+                if (_label == label_img) {
+                    var _dataID = ByteToInt32(_byteData, 4);
+                    if (_dataID != dataID_img) receivedLength_img = 0;
+
+                    dataID_img = _dataID;
+                    dataLength_img = ByteToInt32(_byteData, 8);
+                    //var _offset = ByteToInt32(_byteData, 12);
+                    var _GZipMode = (_byteData[16] == 1) ? true : false;
+
+                    if (receivedLength_img == 0) dataByte_img = new Uint8Array(0);
+                    receivedLength_img += _byteData.length - 18;
+
+                    //----------------add byte----------------
+                    dataByte_img = CombineInt8Array(dataByte_img, _byteData.slice(18, _byteData.length));
+                    //----------------add byte----------------
+
+                    if (ReadyToGetFrame_img)
+                    {
+                        if (receivedLength_img == dataLength_img) ProcessImageData(dataByte_img, _GZipMode);
+                    }
+                }
+
+                /*----------------------Not currently worrying about audio
+                if (_label == label_aud)
+                {
+                    var _dataID = ByteToInt32(_byteData, 4);
+                    if (_dataID != dataID_aud) receivedLength_aud = 0;
+
+                    dataID_aud = _dataID;
+                    dataLength_aud = ByteToInt32(_byteData, 8);
+                    //var _offset = ByteToInt32(_byteData, 12);
+                    var _GZipMode = (_byteData[16] == 1) ? true : false;
+
+                    if (receivedLength_aud == 0) dataByte_aud = new Uint8Array(0);
+                    receivedLength_aud += _byteData.length - 18;
+                    //----------------add byte----------------
+                    dataByte_aud = CombineInt8Array(dataByte_aud, _byteData.slice(18, _byteData.length));
+                    //----------------add byte----------------
+                    if (ReadyToGetFrame_aud)
+                    {
+                        if (receivedLength_aud == dataLength_aud) ProcessAudioData(dataByte_aud, _GZipMode);
+                    }
+                }
+                */
+        }
+        
+        function ProcessImageData(_byte, _GZipMode)
+            {
+                ReadyToGetFrame_img = false;
+
+                var binary = '';
+
+                var bytes = new Uint8Array(_byte);
+                if(_GZipMode)
+                {
+                    var gunzip = new Zlib.Gunzip (bytes);
+                    bytes = gunzip.decompress();
+                }
+
+                //----conver byte[] to Base64 string----
+                var len = bytes.byteLength;
+                for (var i = 0; i < len; i++)
+                {
+                    binary += String.fromCharCode(bytes[i]);
+                }
+                //----conver byte[] to Base64 string----
+
+                //----display image----
+                //var img = document.getElementById('DisplayImg');
+                document.body.style.backgroundImage =  'url(data:image/jpeg;base64,' + btoa(binary) + ')';
+                //img.width = data.Width;
+                //img.height = data.Height;
+                //----display image----
+
+                ReadyToGetFrame_img = true;
+
+                //document.getElementById("StatusTextVideoInfo").innerHTML = "info: " + img.width + "x" + img.height + " | " + (_GZipMode ? ("Zip("+Math.round((_byte.length/bytes.length) * 100) + "%)") : "Raw");
+                //document.getElementById("StatusTextVideo").innerHTML = "(kB)" + Math.round(_byte.length/1000);
+            }
+        
+        function CombineInt8Array(a, b)
+            {
+                var c = new Int8Array(a.length + b.length);
+                c.set(a);
+                c.set(b, a.length);
+                return c;
+            }
+        function CombineFloat32Array(a, b)
+        {
+            var c = new Float32Array(a.length + b.length);
+            c.set(a);
+            c.set(b, a.length);
+            return c;
+        }
+
+        function ByteToInt32(_byte, _offset)
+        {
+            return (_byte[_offset] & 255) + ((_byte[_offset + 1] & 255) << 8) + ((_byte[_offset + 2] & 255) << 16) + ((_byte[_offset + 3] & 255) << 24);
+            //return _byte[_offset] + _byte[_offset + 1] * 256 + _byte[_offset + 2] * 256 * 256 + _byte[_offset + 3] * 256 * 256 * 256;
+        }
+    </script>
+      
+    <link href="styles.css" rel="stylesheet">
+    <title>Funky Virtual Party</title>  
+  </head>
+  <header id="head">
+<h1 id="title" >Funky Virtual Party</h1>
+  </header>
+  <body>
+      
+    <div id="join">
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name" maxlength="20">
+        <br/>
+        <label for="partyCode">Party Code:</label>
+        <input type="text" id="partyCode" name="partyCode" maxlength="6" autocomplete="off" oninput="this.value = this.value.toUpperCase();" onkeypress="return (event.charCode > 64 && event.charCode < 91) || (event.charCode > 96 && event.charCode < 123) || (event.charCode==8)">
+        <br/>
+        <button id="submit" onclick="submitPartyCode()">Submit</button>
+    </div>
+      
+      
+    <div id="controller">
+        <div id="joy1Div"></div>
+        <div>
+            <button id="actionButtonLeft" class="Action" onclick="actionButton()" ontouchstart="actionButton()">A</button>
+            <button id="actionButtonRight" class="Action" style="opacity: 0;" onclick="actionButton()" ontouchstart="actionButton()" disabled>A</button>
+        </div>
+        <button id="orient" class="ReadyUp RightIcon" onclick="changeOrientation()"></button>
+        
+        <div id="ReadyUpDiv">
+            <button type="submit" class="ReadyUp" onclick="submitReadyUp()" ontouchstart="submitReadyUp()">Ready Up!</button>
+        </div>
+        <p id="server-time"></p>
+        <p id="latency"></p>
+        
+    </div>
+      
+    <!-- This guy is here to prevent scaling on iOS -->
+    <div id="margin" style="width:100%; height: 1000px;">
+    </div>
+  </body>
+</html>

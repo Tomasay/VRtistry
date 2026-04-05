@@ -1,0 +1,99 @@
+@keyframes appear-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.appear-fade-in {
+  animation: appear-fade-in linear;
+  animation-timeline: view();
+  animation-range: entry 0% cover 40%;
+} 
+
+@keyframes appear-from-left {
+  from {
+    opacity: 0;
+    transform: translateX(-50%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0%);
+  }
+}
+
+.appear-from-left {
+  animation: appear-from-left linear;
+  animation-timeline: view();
+  animation-range: entry 0% cover 40%;
+}
+
+ @keyframes appear-from-right {
+  from {
+    opacity: 0;
+    transform: translateX(50%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0%);
+  }
+}
+    
+.appear-from-right {
+  animation: appear-from-right linear;
+  animation-timeline: view();
+  animation-range: entry 0% cover 40%;
+}
+
+ @keyframes appear-from-top {
+  from {
+    opacity: 0;
+    transform: translateY(-50%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0%);
+  }
+}
+    
+.appear-from-top {
+  animation: appear-from-top linear;
+  animation-timeline: view();
+  animation-range: entry 0% cover 40%;
+}
+
+ @keyframes appear-from-bottom {
+  from {
+    opacity: 0;
+    transform: translateY(50%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0%);
+  }
+}
+    
+.appear-from-bottom {
+  animation: appear-from-bottom linear;
+  animation-timeline: view();
+  animation-range: entry 0% cover 40%;
+}
+
+@keyframes appear-zoom {
+  from {
+    opacity: 0;
+    transform: scale(0%);
+  }
+  to {
+    opacity: 1;
+    transform: scale(100%)
+  }
+}
+
+.appear-zoom {
+  animation: appear-zoom linear;
+  animation-timeline: view();
+  animation-range: entry 0% cover 40%;
+}
