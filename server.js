@@ -18,6 +18,13 @@ var roomsInGameInfo = {};
 
 app.use(compress());
 
+// Required for Unity 6 WebGPU: enables SharedArrayBuffer via cross-origin isolation
+app.use((req, res, next) => {
+    res.set('Cross-Origin-Opener-Policy', 'same-origin');
+    res.set('Cross-Origin-Embedder-Policy', 'require-corp');
+    next();
+});
+
 // Set correct headers for pre-compressed Unity build files so browsers decompress them
 app.use((req, res, next) => {
     if (req.url.endsWith('.js.gz')) {
