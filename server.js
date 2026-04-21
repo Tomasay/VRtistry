@@ -17,20 +17,23 @@ var activeUnityRoomCodes = {};
 var roomsInGameInfo = {};
 
 app.use(compress());
-app.use(express.static('assets'));
 
-app.use(express.static('/app/assets/new/Build/'));
-
-app.get('/Build/:filename', (req, res) => {
-  var extensionFile = path.extname(req.params.filename);
-    if(extensionFile === '.data' || extensionFile === '.mem'){
-        res.header('Content-Type', 'application/octet-stream');
+// Set correct headers for pre-compressed Unity build files so browsers decompress them
+app.use((req, res, next) => {
+    if (req.url.endsWith('.js.gz')) {
+        res.set('Content-Encoding', 'gzip');
+        res.set('Content-Type', 'application/javascript');
+    } else if (req.url.endsWith('.wasm.gz')) {
+        res.set('Content-Encoding', 'gzip');
+        res.set('Content-Type', 'application/wasm');
+    } else if (req.url.endsWith('.data.gz')) {
+        res.set('Content-Encoding', 'gzip');
+        res.set('Content-Type', 'application/octet-stream');
     }
-    //Response used gzip encoding
-    res.header('Content-Encoding', 'gzip');
-    //Send file if there is a match into "Compressed" Unity folder
-    res.sendFile(path.resolve(__dirname , '../new/Build/'+req.params.filename));
+    next();
 });
+
+app.use(express.static('assets'));
 
 var server = app.listen(PORT, function(){
     console.log(`Listening on ${PORT}`);
