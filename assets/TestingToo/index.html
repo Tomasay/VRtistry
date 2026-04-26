@@ -38,8 +38,6 @@
          
       </div>
        
-       <input type="text" id="dummyInput" style="font-size: 16px; position:absolute; bottom:25%;" oninput="fakeInputOnClick()" onfocus="setScreenHeightIOSKeyboardOpen()" onblur="setScreenHeightIOSKeyboardClosed()">
-       
        <!-- KEEP PAGE FOCUS -->
        <script src="NoSleep/wakeLock.js"></script>
 
@@ -59,8 +57,6 @@
            let canvasInitialHeight, initialInnerHeight;
         
             function setup(){
-                window.overlayKeyboard = false;
-                
                 $('#unity-canvas').on('touchend', function(e){
                     e.stopPropagation();
                     e.preventDefault();
@@ -68,69 +64,11 @@
                     // Re-request wake lock on every canvas tap — guarantees it is called
                     // from a genuine user gesture, which iOS Safari requires in practice.
                     window.requestWakeLock();
-
-                    if(window.isPointerDownOnButton){
-                        document.getElementById("dummyInput").focus();
-                    }
                 });
-                
-                if ("virtualKeyboard" in navigator){
-                    navigator.virtualKeyboard.overlaysContent = true;
-                    
-                    navigator.virtualKeyboard.addEventListener("geometrychange", (event) => {
-                        const { x, y, width, height } = event.target.boundingRect;
-                        //console.log("Changing height: " + event.target.boundingRect.height);
-                        if(event.target.boundingRect.height > 50 && !window.overlayKeyboard){
-                            document.getElementById("unity-container").style.top = ('-' + event.target.boundingRect.height + 'px');
-                        }
-                        else{
-                            document.getElementById("unity-container").style.top = '0px';
-                        }
-                        
-                        if(navigator.virtualKeyboard.boundingRect.height != 0){ //Only store the last max keyboard height
-                            window.lastKeyboardHeight = navigator.virtualKeyboard.boundingRect.height;
-                        }
-                        
-                      });
-                }
 
                 canvasInitialHeight = document.getElementById("unity-canvas").height;
                 initialInnerHeight = window.innerHeight;
             }
-           
-           function fakeInputOnClick(){
-               window.unityInstance.SendMessage('KeyboardController', 'UpdateText', document.getElementById("dummyInput").value.toString());
-           }
-           
-           function setScreenHeightIOSKeyboardOpen(){
-               if(iOS() && !window.overlayKeyboard){
-                    //Update canvas height when keyboard opens
-                    //document.getElementById("unity-canvas").height = screen.height;
-                    document.getElementById("unity-container").style.top = '-216pt';
-                }
-           }
-           
-           function setScreenHeightIOSKeyboardClosed(){
-               if(iOS()){
-                    //Revert to original canvas height, god only knows why this number needs to be doubled, but it works
-                    //document.getElementById("unity-canvas").height = canvasInitialHeight * 2;
-                    document.getElementById("unity-container").style.top = '0pt';
-               }
-           }
-           
-          function iOS() {
-              return [
-                'iPad Simulator',
-                'iPhone Simulator',
-                'iPod Simulator',
-                'iPad',
-                'iPhone',
-                'iPod'
-              ].includes(navigator.platform)
-              // iPad on iOS 13 detection
-              || (navigator.userAgent.includes("Mac") && "ontouchend" in document)
-        }
-        
            
        </script>
 
