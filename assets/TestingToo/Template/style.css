@@ -104,13 +104,19 @@ body.Light{
 }
 
 .logo-cont, .title-cont{
-   float:left;
-   display: block;
+   margin: auto;
+   width: 100%;
+   padding: 10px;
+   padding-top: 50%;
 }
 .logo-cont{
-   width: 25%;
+   width: 75%;
 }
 .title-cont{
    width: 70%;
-    margin-left: 2%;
+   margin-left: 2%;
+}
+
+#unity-container{
+   position: absolute;
 }
