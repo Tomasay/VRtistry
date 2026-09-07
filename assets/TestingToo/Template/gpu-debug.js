@@ -66,7 +66,13 @@
         push(kind, text);
     }
 
+    // Unity prints a fixed block of allocator settings and repeats a handful of audio
+    // warnings every startup. None of it varies between runs, and it makes the log
+    // tedious to copy off the phone, so keep it out of the panel.
+    var NOISE = /^\s*"memorysetup-|^Trying to get (length|metadata) of sound/;
+
     function push(kind, text) {
+        if (NOISE.test(text)) return;
         var stamp = (performance.now() / 1000).toFixed(2);
         var line = stamp + ' [' + kind + '] ' + text;
         lines.push(line);
