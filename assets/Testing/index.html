@@ -12,7 +12,6 @@
 
       <link rel="stylesheet" href="Template/style.css" />
        
-       <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
       
    </head>
    <body class="Dark">
@@ -51,17 +50,20 @@
        <input type="hidden" id="codeInput" placeholder="Enter Party Code" style="position: absolute; left: 50%; transform: translate(-50%, 0);">
        -->
 
+      <!-- On-device WebGPU diagnostics, inert unless the URL carries &debug=1 -->
+      <script src="Template/gpu-debug.js"></script>
+
       <script src="Template/app.js"> </script>
        
        <script>
            
-           window.onload = setup;
+           window.onload = function(){ try { setup(); } catch (e) { console.error('setup() failed:', e); } };
            let canvasInitialHeight, initialInnerHeight;
         
             function setup(){
                 window.overlayKeyboard = false;
                 
-                $('#unity-canvas').on('touchend', function(e){
+                document.getElementById('unity-canvas').addEventListener('touchend', function(e){
                     e.stopPropagation();
                     e.preventDefault();
 
