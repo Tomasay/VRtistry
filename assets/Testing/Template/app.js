@@ -25,6 +25,16 @@
         canvas.width=width;
     }
 
+    // iOS Safari tears down the WebGPU device when GPU memory runs out. At
+    // devicePixelRatio 3 a 390x671 canvas becomes a 1170x2013 render target, and with
+    // 4x MSAA that pair of colour+depth targets alone costs ~180MB - enough to lose the
+    // device partway through startup. Unity honours Module.devicePixelRatio (see
+    // _JS_SystemInfo_GetPreferredDevicePixelRatio in the framework), and every config
+    // key is copied onto Module, so capping it here scales the render target down
+    // without touching the CSS layout. ?dpr=N overrides it for A/B testing on device.
+    var dprOverride = parseFloat((location.search.match(/[?&]dpr=([0-9.]+)/) || [])[1]);
+    var deviceRatio = dprOverride > 0 ? dprOverride : Math.min(window.devicePixelRatio || 1, 2);
+
     var buildUrl = "Build";
     var loaderUrl = buildUrl + "/WebGL.loader.js";
     var config = {
@@ -35,6 +45,7 @@
         companyName: "",
         productName: "Funky Virtual Party",
         productVersion: "0.1",
+        devicePixelRatio: deviceRatio,
     };
 
     var script = document.createElement("script");
