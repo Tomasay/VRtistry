@@ -187,6 +187,47 @@
         };
     })();
 
+    // ---- resources the texture/buffer tally cannot see --------------------------------
+    // Texture and buffer totals are identical in crashing and clean runs, so whatever the
+    // GPU process runs out of is something else. Count the per-frame churn instead: bind
+    // groups, samplers, encoders, and the bytes pushed through the queue.
+    var rBindGroup = 0, rSampler = 0, rEncoder = 0, rLayout = 0;
+    var rWriteBuf = 0, rWriteBufBytes = 0, rWriteTex = 0, rWriteTexBytes = 0;
+
+    function resourceSummary() {
+        return 'bindGroups ' + rBindGroup + ', samplers ' + rSampler + ', encoders ' + rEncoder +
+            ', layouts ' + rLayout +
+            ', writeBuffer ' + rWriteBuf + '/' + mb(rWriteBufBytes) +
+            ', writeTexture ' + rWriteTex + '/' + mb(rWriteTexBytes);
+    }
+
+    (function countResources() {
+        if (!window.GPUDevice) return;
+        function wrap(proto, name, onCall) {
+            if (!proto || !proto[name]) return;
+            var original = proto[name];
+            proto[name] = function () {
+                try { onCall.apply(null, arguments); } catch (e) { /* counting must never throw */ }
+                return original.apply(this, arguments);
+            };
+        }
+        wrap(GPUDevice.prototype, 'createBindGroup', function () { rBindGroup++; });
+        wrap(GPUDevice.prototype, 'createBindGroupLayout', function () { rLayout++; });
+        wrap(GPUDevice.prototype, 'createSampler', function () { rSampler++; });
+        wrap(GPUDevice.prototype, 'createCommandEncoder', function () { rEncoder++; });
+        if (window.GPUQueue) {
+            wrap(GPUQueue.prototype, 'writeBuffer', function (buf, off, data, dOff, size) {
+                rWriteBuf++;
+                var n = size != null ? size : (data && (data.byteLength || data.length)) || 0;
+                rWriteBufBytes += n;
+            });
+            wrap(GPUQueue.prototype, 'writeTexture', function (dst, data, layout, size) {
+                rWriteTex++;
+                rWriteTexBytes += (data && (data.byteLength || data.length)) || 0;
+            });
+        }
+    })();
+
     // ---- WebGPU ---------------------------------------------------------------------
 
     if (!navigator.gpu) { log('sys', 'navigator.gpu is undefined - no WebGPU on this browser'); }
@@ -232,7 +273,7 @@
                 '  (textures ' + mb(textureBytes) + ' x' + textureCount +
                 ', buffers ' + mb(bufferBytes) + ' x' + bufferCount + ')'
                 + '  |  shaders ' + shaderCount + '/pipelines ' + pipelineCount
-                + '  |  ' + audioSummary();
+                + '  |  ' + audioSummary() + '  |  ' + resourceSummary();
         }
 
         var createTexture = GPUDevice.prototype.createTexture;
