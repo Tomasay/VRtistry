@@ -192,6 +192,16 @@
     // GPU process runs out of is something else. Count the per-frame churn instead: bind
     // groups, samplers, encoders, and the bytes pushed through the queue.
     var rBindGroup = 0, rSampler = 0, rEncoder = 0, rLayout = 0;
+    var texShapes = {}, texShapeBytes = {};
+
+    // The biggest uploads by shape, so a repeatedly re-uploaded atlas stands out.
+    function texShapeSummary() {
+        return Object.keys(texShapes)
+            .sort(function (a, b) { return texShapeBytes[b] - texShapeBytes[a]; })
+            .slice(0, 4)
+            .map(function (k) { return k + ' x' + texShapes[k] + '=' + mb(texShapeBytes[k]); })
+            .join(' | ');
+    }
     var rWriteBuf = 0, rWriteBufBytes = 0, rWriteTex = 0, rWriteTexBytes = 0;
 
     function resourceSummary() {
@@ -230,10 +240,10 @@
                     (size && (size.height != null ? size.height : size[1])) || 1;
                 var depth = (size && (size.depthOrArrayLayers != null ? size.depthOrArrayLayers : size[2])) || 1;
                 rWriteTexBytes += bpr * rows * depth;
-                if (bpr * rows * depth >= 2 * 1048576) {
-                    log('mem', 'large texture upload ' + mb(bpr * rows * depth) +
-                        '  (' + (size && (size.width || size[0])) + 'x' + rows + ')');
-                }
+                var w = (size && (size.width != null ? size.width : size[0])) || 0;
+                var key = w + 'x' + rows;
+                texShapes[key] = (texShapes[key] || 0) + 1;
+                texShapeBytes[key] = (texShapeBytes[key] || 0) + bpr * rows * depth;
             });
         }
     })();
@@ -607,6 +617,7 @@
         }
         parts.push(audioSummary());
         parts.push(resourceSummary());
+        parts.push('tex[' + texShapeSummary() + ']');
         return parts.join(', ');
     }
 
