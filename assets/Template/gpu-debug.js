@@ -590,20 +590,39 @@
                 return;
             }
 
+            location.replace(location.pathname + '?debug=1&report=1');
+            return;
+        }, RUN_BUDGET_MS);
+    }
+
+    // The landing page for a finished matrix: no Unity, just the stored results.
+    if (/[?&]report=1\b/.test(location.search)) {
+        var done = [];
+        try { done = JSON.parse(localStorage.getItem(MATRIX_KEY) || '[]'); } catch (e) { done = []; }
+        setTimeout(function () {
             log('sys', '========== MATRIX COMPLETE - copy from here ==========');
-            results.forEach(function (r) {
+            done.forEach(function (r) {
                 log(r.outcome === 'CRASH' ? 'error' : 'sys',
                     'run ' + r.n + '  ' + r.cfg + '  ' + r.outcome + '  ' + r.detail);
             });
             ['default', 'noaudio'].forEach(function (cfg) {
-                var of = results.filter(function (r) { return r.cfg === cfg; });
+                var of = done.filter(function (r) { return r.cfg === cfg; });
                 var bad = of.filter(function (r) { return r.outcome === 'CRASH'; });
                 log('sys', cfg + ': ' + bad.length + ' of ' + of.length + ' crashed');
             });
             log('sys', '========== END ==========');
             try { localStorage.removeItem(MATRIX_KEY); } catch (e) { /* ignore */ }
-        }, RUN_BUDGET_MS);
+        }, 50);
     }
+
+    // Expose the buffer so a host machine can read it over Web Inspector / CDP instead of
+    // the log having to be copied off the phone by hand.
+    window.__gpuDebug = {
+        get lines() { return lines.slice(); },
+        get text() { return lines.join('\n'); },
+        get crashed() { return crashed; },
+        snapshot: function () { try { return snapshot(); } catch (e) { return '(unavailable)'; } }
+    };
 
     if (document.body) build();
     else document.addEventListener('DOMContentLoaded', build);
