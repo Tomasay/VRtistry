@@ -28,15 +28,33 @@
         location.reload();
     }
 
-    // Chrome ignores powerPreference on Windows and warns once for every adapter
-    // request that carries it. Unity always sends one, so drop the key where it is
-    // dead weight and keep it everywhere it still selects a GPU.
-    var ignoresPowerPreference = /Windows/.test(
-        (navigator.userAgentData && navigator.userAgentData.platform) || navigator.userAgent || ''
-    );
+    // Chrome ignores powerPreference on Windows and warns once for every adapter request
+    // that carries it, and Unity always sends one. The hint only actually picks a GPU on
+    // machines with two of them, so keep it only where the platform positively looks like
+    // a Mac and nothing looks like Windows.
+    //
+    // Read every platform source, not just the user agent: DevTools device emulation
+    // rewrites navigator.userAgent and userAgentData (to an iPhone, say) while Chrome keeps
+    // warning based on the real OS, and navigator.platform still reports Win32 there.
+    var platformHints = [];
+    if (navigator.userAgentData && typeof navigator.userAgentData.platform === 'string')
+        platformHints.push(navigator.userAgentData.platform);
+    if (typeof navigator.platform === 'string') platformHints.push(navigator.platform);
+    if (typeof navigator.userAgent === 'string') platformHints.push(navigator.userAgent);
+
+    function anyHintMatches(pattern) {
+        for (var i = 0; i < platformHints.length; i++) {
+            if (pattern.test(platformHints[i])) return true;
+        }
+        return false;
+    }
+
+    // Note "like Mac OS X" in every iPhone user agent - harmless, since Safari does not
+    // warn about the option and iOS has a single GPU either way.
+    var keepPowerPreference = anyHintMatches(/Mac/i) && !anyHintMatches(/Win/i);
 
     function cleanOptions(options) {
-        if (!ignoresPowerPreference || !options || !('powerPreference' in options)) return options;
+        if (keepPowerPreference || !options || !('powerPreference' in options)) return options;
         var copy = {};
         for (var key in options) {
             if (key !== 'powerPreference') copy[key] = options[key];
