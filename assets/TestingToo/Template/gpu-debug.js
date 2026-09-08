@@ -596,6 +596,7 @@
             parts.push('gpu ' + mb(textureBytes + bufferBytes));
         }
         parts.push(audioSummary());
+        parts.push(resourceSummary());
         return parts.join(', ');
     }
 
