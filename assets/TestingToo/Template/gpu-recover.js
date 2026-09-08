@@ -28,9 +28,25 @@
         location.reload();
     }
 
+    // Chrome ignores powerPreference on Windows and warns once for every adapter
+    // request that carries it. Unity always sends one, so drop the key where it is
+    // dead weight and keep it everywhere it still selects a GPU.
+    var ignoresPowerPreference = /Windows/.test(
+        (navigator.userAgentData && navigator.userAgentData.platform) || navigator.userAgent || ''
+    );
+
+    function cleanOptions(options) {
+        if (!ignoresPowerPreference || !options || !('powerPreference' in options)) return options;
+        var copy = {};
+        for (var key in options) {
+            if (key !== 'powerPreference') copy[key] = options[key];
+        }
+        return copy;
+    }
+
     var requestAdapter = navigator.gpu.requestAdapter.bind(navigator.gpu);
-    navigator.gpu.requestAdapter = function () {
-        return requestAdapter.apply(null, arguments).then(function (adapter) {
+    navigator.gpu.requestAdapter = function (options) {
+        return requestAdapter(cleanOptions(options)).then(function (adapter) {
             if (!adapter) return adapter;
             var requestDevice = adapter.requestDevice.bind(adapter);
             adapter.requestDevice = function () {
