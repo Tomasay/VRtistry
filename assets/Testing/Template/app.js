@@ -25,15 +25,17 @@
         canvas.width=width;
     }
 
-    // iOS Safari tears down the WebGPU device when GPU memory runs out. At
-    // devicePixelRatio 3 a 390x671 canvas becomes a 1170x2013 render target, and with
-    // 4x MSAA that pair of colour+depth targets alone costs ~180MB - enough to lose the
-    // device partway through startup. Unity honours Module.devicePixelRatio (see
-    // _JS_SystemInfo_GetPreferredDevicePixelRatio in the framework), and every config
-    // key is copied onto Module, so capping it here scales the render target down
-    // without touching the CSS layout. ?dpr=N overrides it for A/B testing on device.
+    // ?dpr=N renders at a chosen pixel ratio instead of the display's own. Unity honours
+    // Module.devicePixelRatio (see _JS_SystemInfo_GetPreferredDevicePixelRatio in the
+    // framework) and every config key is copied onto Module, so this scales the render
+    // target without touching the CSS layout - useful for isolating resolution from
+    // other variables on a device. Default behaviour is unchanged.
+    //
+    // Note: capping this was tried as a fix for the iOS device loss and did NOT help -
+    // the device is lost at the same point at dpr 2 as at dpr 3, and the build that works
+    // allocates MORE GPU memory than the one that fails. Resolution is not the problem.
     var dprOverride = parseFloat((location.search.match(/[?&]dpr=([0-9.]+)/) || [])[1]);
-    var deviceRatio = dprOverride > 0 ? dprOverride : Math.min(window.devicePixelRatio || 1, 2);
+    var deviceRatio = dprOverride > 0 ? dprOverride : (window.devicePixelRatio || 1);
 
     var buildUrl = "Build";
     var loaderUrl = buildUrl + "/WebGL.loader.js";

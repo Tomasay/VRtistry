@@ -250,6 +250,111 @@
             }
         };
 
+        // ---- what was the GPU doing when the device died? ----------------------------
+        // The device is lost with nothing calling destroy() and with memory well below
+        // what the working build reaches, so the likely cause is WebKit's GPU process
+        // falling over on something Unity handed it. Keep a short history of the last
+        // shaders and pipelines created, and count queue submissions, so the loss can be
+        // pinned to either resource creation (before any submit) or a command that was
+        // actually executed (after).
+
+        var RING = 8;
+        var recentShaders = [];
+        var recentPipelines = [];
+        var submitCount = 0;
+
+        function remember(ring, entry) {
+            ring.push(entry);
+            if (ring.length > RING) ring.shift();
+        }
+
+        function describePipeline(desc) {
+            if (!desc) return '(no descriptor)';
+            var parts = [desc.label || 'unlabelled'];
+            try {
+                if (desc.vertex) parts.push('vs=' + (desc.vertex.entryPoint || '?'));
+                if (desc.fragment) {
+                    parts.push('fs=' + (desc.fragment.entryPoint || '?'));
+                    var targets = (desc.fragment.targets || []).map(function (t) {
+                        return t ? t.format : 'null';
+                    });
+                    parts.push('targets=[' + targets.join(',') + ']');
+                }
+                if (desc.depthStencil) parts.push('depth=' + desc.depthStencil.format);
+                if (desc.multisample) parts.push('samples=' + (desc.multisample.count || 1));
+                if (desc.primitive) parts.push('topology=' + (desc.primitive.topology || 'triangle-list'));
+            } catch (e) { parts.push('(descriptor unreadable)'); }
+            return parts.join(' ');
+        }
+
+        var createShaderModule = GPUDevice.prototype.createShaderModule;
+        GPUDevice.prototype.createShaderModule = function (desc) {
+            var module = createShaderModule.apply(this, arguments);
+            // Unity rarely labels these, so keep a slice of the WGSL as a fingerprint -
+            // entry point names and struct names are usually enough to identify a shader.
+            var head = '';
+            try {
+                if (desc && desc.code) head = String(desc.code).replace(/\s+/g, ' ').slice(0, 140);
+            } catch (e) { /* code unreadable */ }
+            remember(recentShaders, (desc && desc.label ? desc.label : 'unlabelled') + ' | ' + head);
+            try {
+                if (module.getCompilationInfo) {
+                    module.getCompilationInfo().then(function (info) {
+                        (info.messages || []).forEach(function (m) {
+                            if (m.type === 'error') {
+                                log('error', 'shader compile error [' + (desc && desc.label || 'unlabelled') +
+                                    '] line ' + m.lineNum + ': ' + m.message);
+                            }
+                        });
+                    }, function () { /* info unavailable */ });
+                }
+            } catch (e) { /* not supported */ }
+            return module;
+        };
+
+        ['createRenderPipeline', 'createComputePipeline'].forEach(function (name) {
+            var original = GPUDevice.prototype[name];
+            if (!original) return;
+            GPUDevice.prototype[name] = function (desc) {
+                remember(recentPipelines, name + ': ' + describePipeline(desc));
+                try {
+                    return original.apply(this, arguments);
+                } catch (err) {
+                    log('error', name + ' threw: ' + describe(err) + '  ::  ' + describePipeline(desc));
+                    throw err;
+                }
+            };
+        });
+
+        ['createRenderPipelineAsync', 'createComputePipelineAsync'].forEach(function (name) {
+            var original = GPUDevice.prototype[name];
+            if (!original) return;
+            GPUDevice.prototype[name] = function (desc) {
+                remember(recentPipelines, name + ': ' + describePipeline(desc));
+                return original.apply(this, arguments).then(null, function (err) {
+                    log('error', name + ' rejected: ' + describe(err) + '  ::  ' + describePipeline(desc));
+                    throw err;
+                });
+            };
+        });
+
+        if (window.GPUQueue && GPUQueue.prototype.submit) {
+            var submit = GPUQueue.prototype.submit;
+            GPUQueue.prototype.submit = function () {
+                submitCount++;
+                if (submitCount === 1) log('gpu', 'first queue.submit - the GPU has started executing commands');
+                return submit.apply(this, arguments);
+            };
+        }
+
+        function dumpGpuHistory() {
+            log('error', '  queue submits before this point: ' + submitCount);
+            log('error', '  last ' + recentPipelines.length + ' pipelines (newest last):');
+            recentPipelines.forEach(function (p, i) { log('error', '    ' + (i + 1) + '. ' + p); });
+            log('error', '  last ' + recentShaders.length + ' shader modules (newest last):');
+            recentShaders.forEach(function (s, i) { log('error', '    ' + (i + 1) + '. ' + s); });
+        }
+
         // ---- which device actually drives the canvas? --------------------------------
 
         if (window.GPUCanvasContext && GPUCanvasContext.prototype.configure) {
@@ -279,6 +384,7 @@
                 device.lost.then(function (reason) {
                     log('error', 'device#' + id + ' LOST: ' + reason.reason + ' - ' + (reason.message || '(no message)'));
                     log('error', '  ' + tallySummary());
+                    dumpGpuHistory();
                 });
                 return device;
             });
