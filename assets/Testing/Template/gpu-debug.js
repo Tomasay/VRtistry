@@ -223,7 +223,17 @@
             });
             wrap(GPUQueue.prototype, 'writeTexture', function (dst, data, layout, size) {
                 rWriteTex++;
-                rWriteTexBytes += (data && (data.byteLength || data.length)) || 0;
+                // Unity hands in a view over the whole wasm heap, so data.byteLength is the
+                // heap size, not the upload. The real volume is the described region.
+                var bpr = (layout && layout.bytesPerRow) || 0;
+                var rows = (layout && layout.rowsPerImage) ||
+                    (size && (size.height != null ? size.height : size[1])) || 1;
+                var depth = (size && (size.depthOrArrayLayers != null ? size.depthOrArrayLayers : size[2])) || 1;
+                rWriteTexBytes += bpr * rows * depth;
+                if (bpr * rows * depth >= 2 * 1048576) {
+                    log('mem', 'large texture upload ' + mb(bpr * rows * depth) +
+                        '  (' + (size && (size.width || size[0])) + 'x' + rows + ')');
+                }
             });
         }
     })();
