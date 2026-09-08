@@ -18,6 +18,17 @@
     var lines = [];
     var panel, body;
 
+    // Most of this file only observes. Two switches exist because the shader probe below
+    // is NOT purely passive - getCompilationInfo() forces the browser to materialise
+    // compilation results - and a build that reliably lost its GPU device stopped doing
+    // so once the probe was added. These let the same page be run with the probe on and
+    // off to find out whether the probe is masking the fault or the fault is flaky.
+    //
+    //   &probe=0     install none of the shader/pipeline/submit wrappers
+    //   &compinfo=0  keep the wrappers, but never call getCompilationInfo()
+    var PROBE = !/[?&]probe=0\b/.test(location.search);
+    var COMPINFO = !/[?&]compinfo=0\b/.test(location.search);
+
     function build() {
         panel = document.createElement('div');
         panel.style.cssText = 'position:fixed;left:0;right:0;bottom:0;height:45%;z-index:2147483647;' +
@@ -120,6 +131,61 @@
     window.addEventListener('freeze', function () { log('sys', 'freeze'); });
     window.addEventListener('resume', function () { log('sys', 'resume'); });
 
+    // ---- audio -----------------------------------------------------------------------
+    // Decoded audio is the one big allocation neither of the other numbers can see: it is
+    // not GPU memory and it does not live in the wasm heap, it sits in the browser's Web
+    // Audio memory. The tutorial narration clips are imported Decompress On Load with
+    // preloading on, so they all decode to raw PCM in one burst during scene load -
+    // right in the window where the device is lost.
+    //
+    //   &noaudio=1  skip decoding entirely and hand back a short silent buffer, so the
+    //               same build can be run with and without the audio memory
+    var NOAUDIO = /[?&]noaudio=1\b/.test(location.search);
+    var audioCalls = 0, audioInputBytes = 0, audioPcmBytes = 0;
+
+    function audioSummary() {
+        return 'audio ' + audioCalls + ' clip(s), ' + mb(audioPcmBytes) + ' decoded PCM';
+    }
+
+    (function patchAudio() {
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC || !AC.prototype.decodeAudioData) return;
+        var decodeAudioData = AC.prototype.decodeAudioData;
+
+        AC.prototype.decodeAudioData = function (data, successCb, errorCb) {
+            var bytes = (data && data.byteLength) || 0;
+            audioCalls++;
+            audioInputBytes += bytes;
+
+            if (NOAUDIO) {
+                // Unity only needs a valid AudioBuffer back; a short silence keeps the
+                // clip playable-but-empty and skips the PCM allocation completely.
+                var silent = this.createBuffer(1, Math.max(1, Math.round(this.sampleRate * 0.1)), this.sampleRate);
+                log('sys', 'decodeAudioData STUBBED, skipped ' + mb(bytes) + ' of encoded audio');
+                if (successCb) { try { successCb(silent); } catch (e) { /* caller threw */ } }
+                return Promise.resolve(silent);
+            }
+
+            var counted = false;
+            function note(buf) {
+                if (counted || !buf) return;
+                counted = true;
+                var pcm = buf.length * buf.numberOfChannels * 4;
+                audioPcmBytes += pcm;
+                log('mem', 'decoded audio ' + buf.duration.toFixed(1) + 's ' + buf.numberOfChannels +
+                    'ch @' + buf.sampleRate + 'Hz = ' + mb(pcm) + '  (' + audioSummary() + ')');
+            }
+
+            var result = decodeAudioData.call(this, data, function (buf) {
+                note(buf);
+                if (successCb) successCb(buf);
+            }, errorCb);
+
+            if (result && result.then) result.then(note, function () { /* reported via errorCb */ });
+            return result;
+        };
+    })();
+
     // ---- WebGPU ---------------------------------------------------------------------
 
     if (!navigator.gpu) { log('sys', 'navigator.gpu is undefined - no WebGPU on this browser'); }
@@ -163,7 +229,9 @@
         function tallySummary() {
             return 'gpu allocated ' + mb(textureBytes + bufferBytes) +
                 '  (textures ' + mb(textureBytes) + ' x' + textureCount +
-                ', buffers ' + mb(bufferBytes) + ' x' + bufferCount + ')';
+                ', buffers ' + mb(bufferBytes) + ' x' + bufferCount + ')'
+                + '  |  shaders ' + shaderCount + '/pipelines ' + pipelineCount
+                + '  |  ' + audioSummary();
         }
 
         var createTexture = GPUDevice.prototype.createTexture;
@@ -258,10 +326,28 @@
         // pinned to either resource creation (before any submit) or a command that was
         // actually executed (after).
 
-        var RING = 8;
+        var RING = 20;
         var recentShaders = [];
         var recentPipelines = [];
         var submitCount = 0;
+
+        // Unity puts the source asset path in the first line of every WGSL module it
+        // creates, so the whole compile run can be followed by path. The device dies
+        // during this phase with no pipelines and no submits, so what matters is how far
+        // the run gets and how much of it there is.
+        var pipelineCount = 0;
+        var shaderCount = 0;
+        var shaderPaths = [];
+        var lastShaderPath = '';
+
+        function shaderPathOf(code) {
+            if (!code) return '(no source)';
+            // Asset paths contain spaces ("Third Party/..."), so take the whole comment
+            // line rather than the first whitespace-delimited token.
+            var m = String(code).match(/^[^\S\r\n]*\/\/[^\S\r\n]*([^\r\n]+)/);
+            if (!m) return '(unattributed)';
+            return m[1].trim().replace(/^Assets\//, '');
+        }
 
         function remember(ring, entry) {
             ring.push(entry);
@@ -287,18 +373,33 @@
             return parts.join(' ');
         }
 
+        if (PROBE) {
+
         var createShaderModule = GPUDevice.prototype.createShaderModule;
         GPUDevice.prototype.createShaderModule = function (desc) {
             var module = createShaderModule.apply(this, arguments);
             // Unity rarely labels these, so keep a slice of the WGSL as a fingerprint -
             // entry point names and struct names are usually enough to identify a shader.
             var head = '';
+            var path = '(unknown)';
             try {
-                if (desc && desc.code) head = String(desc.code).replace(/\s+/g, ' ').slice(0, 140);
+                if (desc && desc.code) {
+                    head = String(desc.code).replace(/\s+/g, ' ').slice(0, 110);
+                    path = shaderPathOf(desc.code);
+                }
             } catch (e) { /* code unreadable */ }
-            remember(recentShaders, (desc && desc.label ? desc.label : 'unlabelled') + ' | ' + head);
+
+            shaderCount++;
+            shaderPaths.push(path);
+            // One line per distinct shader rather than per module keeps this readable -
+            // each shader usually produces a vertex and a fragment module back to back.
+            if (path !== lastShaderPath) {
+                lastShaderPath = path;
+                log('gpu', 'shader #' + shaderCount + '  ' + path);
+            }
+            remember(recentShaders, '#' + shaderCount + ' ' + path + ' | ' + head);
             try {
-                if (module.getCompilationInfo) {
+                if (COMPINFO && module.getCompilationInfo) {
                     module.getCompilationInfo().then(function (info) {
                         (info.messages || []).forEach(function (m) {
                             if (m.type === 'error') {
@@ -316,6 +417,7 @@
             var original = GPUDevice.prototype[name];
             if (!original) return;
             GPUDevice.prototype[name] = function (desc) {
+                pipelineCount++;
                 remember(recentPipelines, name + ': ' + describePipeline(desc));
                 try {
                     return original.apply(this, arguments);
@@ -347,7 +449,11 @@
             };
         }
 
+        } // end PROBE
+
         function dumpGpuHistory() {
+            log('error', '  shader modules created: ' + shaderCount +
+                ' (' + new Set(shaderPaths).size + ' distinct shaders)');
             log('error', '  queue submits before this point: ' + submitCount);
             log('error', '  last ' + recentPipelines.length + ' pipelines (newest last):');
             recentPipelines.forEach(function (p, i) { log('error', '    ' + (i + 1) + '. ' + p); });
@@ -420,7 +526,8 @@
     if (document.body) build();
     else document.addEventListener('DOMContentLoaded', build);
 
-    log('sys', 'gpu-debug active | ' + navigator.userAgent);
+    log('sys', 'gpu-debug active | probe=' + (PROBE ? 'on' : 'OFF') + (NOAUDIO ? ' NOAUDIO' : '') +
+        ' compinfo=' + (COMPINFO ? 'on' : 'OFF') + ' | ' + navigator.userAgent);
     log('sys', 'screen ' + screen.width + 'x' + screen.height + ' dpr=' + window.devicePixelRatio +
         ' inner ' + window.innerWidth + 'x' + window.innerHeight);
 })();
