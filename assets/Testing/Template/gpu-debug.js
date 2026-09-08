@@ -26,6 +26,7 @@
     //
     //   &probe=0     install none of the shader/pipeline/submit wrappers
     //   &compinfo=0  keep the wrappers, but never call getCompilationInfo()
+    var crashed = false;
     var PROBE = !/[?&]probe=0\b/.test(location.search);
     var COMPINFO = !/[?&]compinfo=0\b/.test(location.search);
 
@@ -302,6 +303,7 @@
             try {
                 return beginRenderPass.call(this, descriptor);
             } catch (err) {
+                crashed = true;
                 if (!alreadyDumped) {
                     alreadyDumped = true;
                     log('error', 'beginRenderPass threw: ' + describe(err));
@@ -488,6 +490,7 @@
                     log('error', 'WebGPU error on device#' + id + ': ' + (e.error && e.error.message));
                 });
                 device.lost.then(function (reason) {
+                    crashed = true;
                     log('error', 'device#' + id + ' LOST: ' + reason.reason + ' - ' + (reason.message || '(no message)'));
                     log('error', '  ' + tallySummary());
                     dumpGpuHistory();
@@ -521,6 +524,85 @@
             } catch (e) { /* instance not up yet */ }
             log('mem', tallySummary() + heap);
         }, 1000);
+    }
+
+    // ---- unattended run matrix -------------------------------------------------------
+    // An intermittent fault needs many runs to characterise, which is miserable by hand.
+    // With &matrix=1 the page drives the whole set itself: each attempt gets a fixed
+    // budget, its outcome is stored in localStorage, and the page reloads into the next
+    // configuration. Only the final run prints anything worth copying.
+    var MATRIX = [
+        { label: 'default', params: '' },
+        { label: 'default', params: '' },
+        { label: 'default', params: '' },
+        { label: 'default', params: '' },
+        { label: 'noaudio', params: '&noaudio=1' },
+        { label: 'noaudio', params: '&noaudio=1' },
+        { label: 'noaudio', params: '&noaudio=1' },
+        { label: 'noaudio', params: '&noaudio=1' }
+    ];
+    // Each attempt gets a fixed wall-clock budget rather than waiting on a success
+    // signal, so a run that hangs cannot stall the set. &budget=N overrides it (seconds).
+    var RUN_BUDGET_MS = (parseFloat((location.search.match(/[?&]budget=([0-9.]+)/) || [])[1]) || 20) * 1000;
+    var MATRIX_KEY = 'gpu-debug.matrix';
+
+    function snapshot() {
+        var parts = [];
+        if (typeof shaderCount !== 'undefined') {
+            parts.push('shaders ' + shaderCount + '/' + pipelineCount + ' pipelines');
+            parts.push('submits ' + submitCount);
+            parts.push('last shader: ' + (lastShaderPath || 'none'));
+            parts.push('gpu ' + mb(textureBytes + bufferBytes));
+        }
+        parts.push(audioSummary());
+        return parts.join(', ');
+    }
+
+    if (/[?&]matrix=1\b/.test(location.search)) {
+        // Unity pops an alert() when it halts, which would stall an unattended run.
+        window.alert = function (msg) {
+            log('sys', 'alert suppressed: ' + String(msg).split('\n')[0]);
+        };
+
+        var runIndex = parseInt((location.search.match(/[?&]run=(\d+)/) || [])[1], 10) || 0;
+        var results = [];
+        if (runIndex > 0) {
+            try { results = JSON.parse(localStorage.getItem(MATRIX_KEY) || '[]'); } catch (e) { results = []; }
+        }
+
+        log('sys', '=== matrix run ' + (runIndex + 1) + ' of ' + MATRIX.length +
+            '  [' + MATRIX[runIndex].label + ']  ' + (RUN_BUDGET_MS / 1000) + 's budget ===');
+
+        setTimeout(function () {
+            results.push({
+                n: runIndex + 1,
+                cfg: MATRIX[runIndex].label,
+                outcome: crashed ? 'CRASH' : 'ok',
+                detail: snapshot()
+            });
+            try { localStorage.setItem(MATRIX_KEY, JSON.stringify(results)); } catch (e) { /* private mode */ }
+
+            var next = runIndex + 1;
+            if (next < MATRIX.length) {
+                var carry = (RUN_BUDGET_MS !== 20000) ? '&budget=' + (RUN_BUDGET_MS / 1000) : '';
+                location.replace(location.pathname + '?debug=1&matrix=1&run=' + next +
+                    MATRIX[next].params + carry);
+                return;
+            }
+
+            log('sys', '========== MATRIX COMPLETE - copy from here ==========');
+            results.forEach(function (r) {
+                log(r.outcome === 'CRASH' ? 'error' : 'sys',
+                    'run ' + r.n + '  ' + r.cfg + '  ' + r.outcome + '  ' + r.detail);
+            });
+            ['default', 'noaudio'].forEach(function (cfg) {
+                var of = results.filter(function (r) { return r.cfg === cfg; });
+                var bad = of.filter(function (r) { return r.outcome === 'CRASH'; });
+                log('sys', cfg + ': ' + bad.length + ' of ' + of.length + ' crashed');
+            });
+            log('sys', '========== END ==========');
+            try { localStorage.removeItem(MATRIX_KEY); } catch (e) { /* ignore */ }
+        }, RUN_BUDGET_MS);
     }
 
     if (document.body) build();
