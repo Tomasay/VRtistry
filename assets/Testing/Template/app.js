@@ -25,18 +25,6 @@
         canvas.width=width;
     }
 
-    // ?dpr=N renders at a chosen pixel ratio instead of the display's own. Unity honours
-    // Module.devicePixelRatio (see _JS_SystemInfo_GetPreferredDevicePixelRatio in the
-    // framework) and every config key is copied onto Module, so this scales the render
-    // target without touching the CSS layout - useful for isolating resolution from
-    // other variables on a device. Default behaviour is unchanged.
-    //
-    // Note: capping this was tried as a fix for the iOS device loss and did NOT help -
-    // the device is lost at the same point at dpr 2 as at dpr 3, and the build that works
-    // allocates MORE GPU memory than the one that fails. Resolution is not the problem.
-    var dprOverride = parseFloat((location.search.match(/[?&]dpr=([0-9.]+)/) || [])[1]);
-    var deviceRatio = dprOverride > 0 ? dprOverride : (window.devicePixelRatio || 1);
-
     var buildUrl = "Build";
     var loaderUrl = buildUrl + "/WebGL.loader.js";
     var config = {
@@ -47,11 +35,7 @@
         companyName: "",
         productName: "Funky Virtual Party",
         productVersion: "0.1",
-        devicePixelRatio: deviceRatio,
     };
-
-    // The matrix's report page must stay idle so the summary can be read remotely.
-    if (/[?&]report=1/.test(location.search)) return;
 
     var script = document.createElement("script");
     script.src = loaderUrl;

@@ -37,9 +37,6 @@
         productVersion: "0.1",
     };
 
-    // The matrix's report page must stay idle so the summary can be read remotely.
-    if (/[?&]report=1/.test(location.search)) return;
-
     var script = document.createElement("script");
     script.src = loaderUrl;
     script.onload = () => {

@@ -48,8 +48,9 @@
        <input type="hidden" id="codeInput" placeholder="Enter Party Code" style="position: absolute; left: 50%; transform: translate(-50%, 0);">
        -->
 
-      <!-- On-device WebGPU diagnostics, inert unless the URL carries &debug=1 -->
-      <script src="Template/gpu-debug.js"></script>
+
+      <!-- Reload once if Safari drops the WebGPU device, so a lost device is not a dead page -->
+      <script src="Template/gpu-recover.js"></script>
 
       <script src="Template/app.js"> </script>
        
