@@ -18,17 +18,47 @@ var roomsInGameInfo = {};
 
 app.use(compress());
 
-// Set correct headers for pre-compressed Unity build files so browsers decompress them
+// Set correct headers for pre-compressed Unity build files so browsers decompress them.
+//
+// Both encodings are handled because the three deploys move independently: TestingToo is
+// built with Brotli, the others may still be on Gzip. Whichever a build produces, the file
+// extension says how it was compressed and this sets the matching header.
+//
+// Two things here are load-bearing and easy to break:
+//   - Content-Encoding must be right or the player gets compressed bytes it cannot read.
+//     The Unity build has decompressionFallback off, which is the fast, correct setting and
+//     depends entirely on this header arriving intact. Anything in front of this server
+//     (proxy, CDN) must not strip or rewrite it.
+//   - Content-Type: application/wasm on the wasm is what lets the browser compile it while
+//     it downloads instead of waiting for the whole file. Losing it costs seconds on a
+//     phone with no visible error.
+const ENCODINGS = [
+    { suffix: '.br', encoding: 'br' },
+    { suffix: '.gz', encoding: 'gzip' },
+];
+
 app.use((req, res, next) => {
-    if (req.url.endsWith('.js.gz')) {
-        res.set('Content-Encoding', 'gzip');
-        res.set('Content-Type', 'application/javascript');
-    } else if (req.url.endsWith('.wasm.gz')) {
-        res.set('Content-Encoding', 'gzip');
-        res.set('Content-Type', 'application/wasm');
-    } else if (req.url.endsWith('.data.gz')) {
-        res.set('Content-Encoding', 'gzip');
-        res.set('Content-Type', 'application/octet-stream');
+    // Ignore any query string before matching on extension.
+    const path = req.url.split('?')[0];
+
+    for (const { suffix, encoding } of ENCODINGS) {
+        if (!path.endsWith(suffix)) continue;
+
+        const base = path.slice(0, -suffix.length);
+        if (base.endsWith('.js')) {
+            res.set('Content-Encoding', encoding);
+            res.set('Content-Type', 'application/javascript');
+        } else if (base.endsWith('.wasm')) {
+            res.set('Content-Encoding', encoding);
+            res.set('Content-Type', 'application/wasm');
+        } else if (base.endsWith('.data')) {
+            res.set('Content-Encoding', encoding);
+            res.set('Content-Type', 'application/octet-stream');
+        } else if (base.endsWith('.symbols.json')) {
+            res.set('Content-Encoding', encoding);
+            res.set('Content-Type', 'application/json');
+        }
+        break;
     }
     next();
 });

@@ -10,9 +10,42 @@
        <link rel="icon" type="image/png" sizes="16x16" href="favicon/favicon-16x16.png">
        <link rel="manifest" href="favicon/site.webmanifest">
 
+      <!--
+        Start the two big downloads now, during HTML parse.
+
+        Without these, nothing touches the build until style.css, wakeLock.js,
+        gpu-recover.js, audio-gate.js, app.js and finally WebGL.loader.js have each been
+        fetched and run in turn - six round trips before the 27 MB that actually matters
+        even begins. The browser can open these connections immediately instead.
+
+        `as="fetch" crossorigin` is what makes the preloaded response match the loader's
+        own fetch() later; without crossorigin the file is downloaded a second time. If you
+        change the compression format in Unity, change these too - a preload pointing at a
+        file the loader never requests is a wasted download, and the console warns about it.
+      -->
+      <link rel="preload" href="Build/WebGL.wasm.br" as="fetch" crossorigin="anonymous">
+      <link rel="preload" href="Build/WebGL.data.br" as="fetch" crossorigin="anonymous">
+      <link rel="preload" href="Build/WebGL.loader.js" as="script">
+      <!--
+        WebGL.framework.js.br is deliberately NOT preloaded. Unity's loader requests it in a
+        way that does not match a fetch preload, so adding one downloaded it twice - verified
+        in DevTools. It is 0.1 MB and arrives while the other two are still streaming, so
+        there is nothing to gain by fixing the match.
+      -->
+
+      <!--
+        The webfont used to be pulled in by an @import at the top of style.css, which meant
+        the browser had to download and parse style.css before it even learned the font
+        existed. Requesting it here in parallel, and warming the two connections it needs,
+        takes that chain out of first paint.
+      -->
+      <link rel="preconnect" href="https://fonts.googleapis.com">
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@600;700&display=swap">
+
       <link rel="stylesheet" href="Template/style.css" />
-       
-      
+
+
    </head>
    <body class="Dark">
       <!-- Unity Container -->

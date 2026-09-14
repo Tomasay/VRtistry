@@ -1,4 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@600;700&display=swap');
+/* The Open Sans @import that used to sit here moved to a <link> in index.html.
+   An @import inside CSS cannot start until style.css itself has downloaded and parsed,
+   which put the webfont two round trips deep in the critical path for no reason. */
 
 body{
     margin: 0;
