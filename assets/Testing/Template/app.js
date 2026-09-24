@@ -12,19 +12,6 @@
     function onComplete(unityInstance) {
         loader.remove();
     }
-    function onWindowResize() {
-        var width = window.innerWidth
-        || document.documentElement.clientWidth
-        || document.body.clientWidth;
-
-        var height = window.innerHeight
-        || document.documentElement.clientHeight
-        || document.body.clientHeight;
-
-        canvas.height=height;
-        canvas.width=width;
-    }
-
     var buildUrl = "Build";
     var loaderUrl = buildUrl + "/WebGL.loader.js";
     var config = {
@@ -55,7 +42,7 @@
     };
     document.body.appendChild(script);
 
-    window.addEventListener('resize', onWindowResize);
-    onWindowResize();
+    // No resize handler: Unity sizes the drawing buffer itself (clientSize x devicePixelRatio).
+    // The old one set it to 1x CSS pixels on every resize, fighting Unity and clearing the canvas.
 
 })();
