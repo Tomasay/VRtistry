@@ -5,6 +5,12 @@
   src: url(Becca.ttf);
 }
 
+/* The whole height chain has to be definite for #unity-container's height:100% to mean
+   the window: without this, html (and so body and #main-container) is 0px tall. */
+html{
+    height: 100%;
+}
+
 body{
     margin: 0;
     max-height: 100%;
